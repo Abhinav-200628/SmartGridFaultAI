@@ -30,6 +30,10 @@ def generate_protection_timeline(
         timestamp_s=0.0,
         timestamp_ms=0.0,
         event_type="NORMAL_OPERATION",
+        event="SYSTEM_NORMAL",
+        time=0.0,
+        breaker_state="CLOSED",
+        reason="NOMINAL_OPERATION",
         description="Grid operating nominally at balanced conditions; Breaker CLOSED",
         status="NORMAL",
     ))
@@ -46,6 +50,10 @@ def generate_protection_timeline(
         timestamp_s=round(t_detect, 5),
         timestamp_ms=round(t_detect * 1000.0, 2),
         event_type="FAULT_DETECTED",
+        event="FAULT_DETECTED",
+        time=round(t_detect, 5),
+        breaker_state="CLOSED",
+        reason=f"FAULT_{fault_type.value}_DETECTED",
         description=f"Protection relay picked up: {fault_type.value} ({fault_category.value})",
         status="WARNING",
     ))
@@ -56,7 +64,11 @@ def generate_protection_timeline(
         timestamp_s=round(t_trip, 5),
         timestamp_ms=round(t_trip * 1000.0, 2),
         event_type="TRIP_COMMAND",
-        description="Relay trip signal issued to main breaker trip coil",
+        event="PROTECTION_ACTIVE",
+        time=round(t_trip, 5),
+        breaker_state="CLOSED",
+        reason="RELAY_TRIP_COMMAND",
+        description="Relay trip signal issued to main breaker trip coil; clearing delay armed",
         status="ACTION",
     ))
 
@@ -66,6 +78,10 @@ def generate_protection_timeline(
         timestamp_s=round(t_open, 5),
         timestamp_ms=round(t_open * 1000.0, 2),
         event_type="BREAKER_OPENED",
+        event="BREAKER_OPEN",
+        time=round(t_open, 5),
+        breaker_state="OPEN",
+        reason="PROTECTION_DELAY_EXPIRED",
         description=f"Circuit breaker contacts fully parted; arc extinguished after {protection_delay_ms:.1f}ms",
         status="ACTION",
     ))
@@ -76,6 +92,10 @@ def generate_protection_timeline(
         timestamp_s=round(t_iso, 5),
         timestamp_ms=round(t_iso * 1000.0, 2),
         event_type="FAULT_SECTION_ISOLATED",
+        event="FAULT_ISOLATED",
+        time=round(t_iso, 5),
+        breaker_state="OPEN",
+        reason="DISCONNECT_FAULTED_ZONE",
         description="Faulted transmission section completely de-energized and safely isolated",
         status="SUCCESS",
     ))
@@ -86,6 +106,10 @@ def generate_protection_timeline(
         timestamp_s=round(t_reconfig, 5),
         timestamp_ms=round(t_reconfig * 1000.0, 2),
         event_type="NETWORK_RECONFIGURATION",
+        event="SERVICE_RESTORATION_ARMED",
+        time=round(t_reconfig, 5),
+        breaker_state="OPEN",
+        reason="FLISR_AUTOMATION_INITIATED",
         description="FLISR automation initiated; downstream healthy loads queued for restoration",
         status="INFO",
     ))

@@ -61,20 +61,16 @@ function VoltageTooltip({ active, payload, label }) {
 
 /**
  * VoltageChart Component
- * Renders dynamic three-phase instantaneous voltages (Va, Vb, Vc) using real
- * time-domain simulation arrays returned by the backend.
- *
- * Props:
- * - simulationData: API response object from POST /api/simulation/run
- * - height: Chart container height in pixels (default: 320)
- * - title: Custom card title (optional)
+ * Fulfills Requirement 5:
+ * Title: THREE-PHASE VOLTAGE
+ * Displays Va, Vb, Vc with distinct professional phase colors.
+ * Voltage axis, Time axis, Legend, Grid, Fault interval, Fault start marker, Fault end marker.
  */
 export default function VoltageChart({
   simulationData,
   height = 320,
-  title = 'Three-Phase Voltage Waveforms (Va, Vb, Vc)',
+  title = 'THREE-PHASE VOLTAGE',
 }) {
-  // Downsample to ~260 points for 60 FPS smooth rendering while capturing all sinusoidal dynamics
   const chartData = useMemo(() => {
     if (!simulationData?.time || simulationData.time.length === 0) return [];
 
@@ -123,9 +119,9 @@ export default function VoltageChart({
           <span>{title}</span>
         </div>
         <div style={{ display: 'flex', gap: '14px', fontSize: '0.75rem', fontWeight: 600 }}>
-          <span style={{ color: 'var(--phase-a)' }}>● Phase A</span>
-          <span style={{ color: 'var(--phase-b)' }}>● Phase B</span>
-          <span style={{ color: 'var(--phase-c)' }}>● Phase C</span>
+          <span style={{ color: 'var(--phase-a)' }}>● Phase A (Va)</span>
+          <span style={{ color: 'var(--phase-b)' }}>● Phase B (Vb)</span>
+          <span style={{ color: 'var(--phase-c)' }}>● Phase C (Vc)</span>
         </div>
       </div>
 
@@ -142,16 +138,16 @@ export default function VoltageChart({
             fontSize: '0.85rem',
           }}
         >
-          <Zap size={32} style={{ opacity: 0.3 }} />
-          <span>Awaiting dynamic simulation data from backend...</span>
+          <Zap size={32} style={{ opacity: 0.3, color: 'var(--accent-cyan)' }} />
+          <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>No Simulation Data</span>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-            Click &ldquo;Run Simulation&rdquo; to observe 3-phase instantaneous voltages.
+            Run a simulation to view electrical waveforms and fault analysis.
           </span>
         </div>
       ) : (
         <div style={{ width: '100%', height: height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+            <LineChart data={chartData} margin={{ top: 12, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.07)" />
               <XAxis
                 dataKey="time"
@@ -180,11 +176,11 @@ export default function VoltageChart({
                   x2={fEnd}
                   strokeOpacity={0.3}
                   fill="#ef4444"
-                  fillOpacity={0.08}
+                  fillOpacity={0.09}
                 />
               )}
 
-              {/* Inception Marker Line */}
+              {/* Fault Start Marker Line */}
               {isFault && (
                 <ReferenceLine
                   x={fStart}
@@ -194,6 +190,22 @@ export default function VoltageChart({
                     value: 'Fault Inception',
                     position: 'top',
                     fill: '#ef4444',
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                />
+              )}
+
+              {/* Fault End Marker Line */}
+              {isFault && (
+                <ReferenceLine
+                  x={fEnd}
+                  stroke="#38bdf8"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: 'Cleared',
+                    position: 'top',
+                    fill: '#38bdf8',
                     fontSize: 10,
                     fontWeight: 700,
                   }}

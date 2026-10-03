@@ -1,0 +1,187 @@
+{
+  "model_name": "RandomForestClassifier",
+  "random_seed": 42,
+  "n_estimators": 100,
+  "train_samples": 336,
+  "test_samples": 84,
+  "classes": [
+    "NORMAL",
+    "LG",
+    "LL",
+    "LLG",
+    "LLL",
+    "OPEN_CIRCUIT",
+    "SHORT_CIRCUIT"
+  ],
+  "test_accuracy": 1.0,
+  "precision_macro": 1.0,
+  "precision_weighted": 1.0,
+  "recall_macro": 1.0,
+  "recall_weighted": 1.0,
+  "f1_macro": 1.0,
+  "f1_weighted": 1.0,
+  "confusion_matrix": [
+    [
+      12,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      12,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      12,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      12,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      12,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      12,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      12
+    ]
+  ],
+  "per_class_report": {
+    "NORMAL": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 12.0
+    },
+    "LG": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 12.0
+    },
+    "LL": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 12.0
+    },
+    "LLG": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 12.0
+    },
+    "LLL": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 12.0
+    },
+    "OPEN_CIRCUIT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 12.0
+    },
+    "SHORT_CIRCUIT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 12.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 84.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 84.0
+    }
+  },
+  "top_features": [
+    [
+      "i0_i1_ratio",
+      0.1053
+    ],
+    [
+      "v0_v1_ratio",
+      0.0996
+    ],
+    [
+      "current_imbalance",
+      0.095
+    ],
+    [
+      "phase_imbalance",
+      0.0928
+    ],
+    [
+      "i2_i1_ratio",
+      0.0865
+    ],
+    [
+      "i0_mag",
+      0.075
+    ],
+    [
+      "v0_mag",
+      0.0731
+    ],
+    [
+      "voltage_deviation",
+      0.0476
+    ],
+    [
+      "apparent_reactance_x1",
+      0.0397
+    ],
+    [
+      "current_deviation",
+      0.0358
+    ]
+  ]
+}

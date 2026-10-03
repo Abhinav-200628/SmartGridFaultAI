@@ -18,6 +18,8 @@ from app.models.schemas import (
     FaultCategory,
     BreakerState,
     GridStatus,
+    SwitchingState,
+    IsolatedSection,
 )
 from app.config import constants
 from app.simulation.symmetrical_components import analyze_symmetrical_components
@@ -25,7 +27,7 @@ from app.simulation.fault_detection import detect_fault
 from app.simulation.fault_classification import classify_fault
 from app.simulation.fault_localization import estimate_fault_distance
 from app.simulation.protection import generate_protection_timeline
-from app.simulation.reconfiguration import generate_switching_timeline
+from app.simulation.reconfiguration import generate_switching_timeline, determine_switching_action
 
 
 def resolve_fault_details(inputs: SimulationInput) -> Tuple[FaultCategory, FaultType, str, str]:
@@ -63,7 +65,7 @@ def resolve_fault_details(inputs: SimulationInput) -> Tuple[FaultCategory, Fault
     if raw_type == FaultType.NORMAL:
         return FaultCategory.NORMAL, FaultType.NORMAL, phase, pair
 
-    if raw_type in [FaultType.LG, FaultType.LL, FaultType.LLG, FaultType.LLL]:
+    if raw_type in [FaultType.LG, FaultType.LL, FaultType.LLG, FaultType.LLL, FaultType.LLLG, FaultType.SHORT_CIRCUIT]:
         return FaultCategory.SHORT_CIRCUIT, raw_type, phase, pair
 
     if raw_type == FaultType.THREE_PHASE_OPEN:
@@ -321,6 +323,23 @@ class ElectricalSimulationEngine:
                         arr_i[fault_active_mask] = i_sym
                         arr_v[fault_active_mask] = i_sym * (r_line_fault + rf) + x_line_fault * i_sc_peak * np.cos(omega * t[fault_active_mask] + th - psi_loop)
 
+                # --- A.5 GENERAL THREE-PHASE-TO-GROUND SHUNT SHORT CIRCUIT (SHORT_CIRCUIT / LLLG) ---
+                elif resolved_type in (FaultType.SHORT_CIRCUIT, FaultType.LLLG):
+                    affected_phases = ["Phase A", "Phase B", "Phase C"]
+                    ground_involved = True
+                    r_loop = r_source + r_line_fault + rf + constants.GROUND_RESISTANCE
+                    l_loop = l_source + l_line_fault + constants.GROUND_INDUCTANCE
+                    z_loop = math.sqrt(r_loop**2 + (omega * l_loop)**2)
+                    psi_loop = math.atan2(omega * l_loop, r_loop)
+                    tau = l_loop / max(1e-6, r_loop)
+                    i_sc_peak = v_ln_peak / z_loop
+
+                    for (arr_i, arr_v, th, scale) in [(ia, va, theta_a, 1.0), (ib, vb, theta_b, 0.85), (ic, vc, theta_c, 0.90)]:
+                        i_dc = -i_sc_peak * scale * math.sin(omega * t_start + th - psi_loop) * np.exp(-t_fault_rel / tau)
+                        i_sym = i_sc_peak * scale * np.sin(omega * t[fault_active_mask] + th - psi_loop) + i_dc
+                        arr_i[fault_active_mask] = i_sym
+                        arr_v[fault_active_mask] = i_sym * (r_line_fault + rf) + x_line_fault * i_sc_peak * np.cos(omega * t[fault_active_mask] + th - psi_loop)
+
             # ========================================================
             # CATEGORY B: OPEN-CIRCUIT CONDUCTION INTERRUPTION
             # ========================================================
@@ -429,14 +448,21 @@ class ElectricalSimulationEngine:
             inputs.total_time,
         )
 
-        # 10. FLISR Automated Switching Reconfiguration
-        grid_status, switching_events = generate_switching_timeline(
-            fault_detected,
-            category,
-            inputs.fault_type,
-            t_start,
-            inputs.protection_delay_ms,
+        # 10. Automatic Switching & Fault Isolation (Stage 4)
+        auto_reconf = getattr(inputs, "auto_reconfigure", False)
+        switching_state, breaker_state_sw, isolated_sec, faulted_sec_status, grid_status, switching_events = determine_switching_action(
+            fault_detected=fault_detected,
+            fault_category=category,
+            fault_type=inputs.fault_type,
+            affected_phases=active_affected,
+            estimated_fault_distance_km=loc_res["estimated_fault_distance_km"],
+            total_line_length_km=inputs.line_length_km,
+            fault_start_time=t_start,
+            protection_delay_ms=inputs.protection_delay_ms,
+            total_time=inputs.total_time,
+            auto_reconfigure=auto_reconf,
         )
+        breaker_state = breaker_state_sw
 
         # 11. Assemble Legacy & Extended Metrics
         max_fault_cur = float(max(
@@ -488,6 +514,7 @@ class ElectricalSimulationEngine:
             "fault_start_time": t_start,
             "fault_duration": inputs.fault_duration,
             "protection_delay_ms": inputs.protection_delay_ms,
+            "auto_reconfigure": auto_reconf,
         }
 
         voltage_meas = {
@@ -507,7 +534,7 @@ class ElectricalSimulationEngine:
             "phase_imbalance_ratio": detection_res["phase_imbalance_ratio"],
         }
 
-        return SimulationResult(
+        result = SimulationResult(
             time=[round(x, 6) for x in t.tolist()],
             va=[round(x, 2) for x in va.tolist()],
             vb=[round(x, 2) for x in vb.tolist()],
@@ -542,4 +569,18 @@ class ElectricalSimulationEngine:
             fault_start_time=t_start,
             fault_duration=inputs.fault_duration,
             fault_end_time=t_end,
+            switching_state=switching_state,
+            faulted_section_status=faulted_sec_status,
+            isolated_section=isolated_sec,
         )
+
+        # Stage 3: Attach Machine Learning predictions (separate from rule-based baseline)
+        try:
+            from ml.inference import MLInferenceService
+            ml_pred, ml_loc = MLInferenceService.get_instance().predict(result, inputs.line_length_km)
+            result.ml_prediction = ml_pred
+            result.ml_localization = ml_loc
+        except Exception:
+            pass
+
+        return result

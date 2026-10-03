@@ -61,17 +61,15 @@ function CurrentTooltip({ active, payload, label }) {
 
 /**
  * CurrentChart Component
- * Renders three-phase instantaneous currents (Ia, Ib, Ic) using real backend data.
- *
- * Props:
- * - simulationData: API response object from POST /api/simulation/run
- * - height: Chart container height in pixels (default: 320)
- * - title: Custom card title (optional)
+ * Fulfills Requirement 6:
+ * Title: THREE-PHASE CURRENT
+ * Displays Ia, Ib, Ic using actual backend data.
+ * Makes current changes during faults visually obvious (surge on short-circuit, near-zero on open-circuit).
  */
 export default function CurrentChart({
   simulationData,
   height = 320,
-  title = 'Three-Phase Current Waveforms (Ia, Ib, Ic)',
+  title = 'THREE-PHASE CURRENT',
 }) {
   const chartData = useMemo(() => {
     if (!simulationData?.time || simulationData.time.length === 0) return [];
@@ -121,9 +119,9 @@ export default function CurrentChart({
           <span>{title}</span>
         </div>
         <div style={{ display: 'flex', gap: '14px', fontSize: '0.75rem', fontWeight: 600 }}>
-          <span style={{ color: 'var(--phase-a)' }}>● Phase A</span>
-          <span style={{ color: 'var(--phase-b)' }}>● Phase B</span>
-          <span style={{ color: 'var(--phase-c)' }}>● Phase C</span>
+          <span style={{ color: 'var(--phase-a)' }}>● Phase A (Ia)</span>
+          <span style={{ color: 'var(--phase-b)' }}>● Phase B (Ib)</span>
+          <span style={{ color: 'var(--phase-c)' }}>● Phase C (Ic)</span>
         </div>
       </div>
 
@@ -140,16 +138,16 @@ export default function CurrentChart({
             fontSize: '0.85rem',
           }}
         >
-          <Activity size={32} style={{ opacity: 0.3 }} />
-          <span>Awaiting dynamic simulation data from backend...</span>
+          <Activity size={32} style={{ opacity: 0.3, color: 'var(--accent-blue)' }} />
+          <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>No Simulation Data</span>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-            Click &ldquo;Run Simulation&rdquo; to observe 3-phase instantaneous currents.
+            Run a simulation to view electrical waveforms and fault analysis.
           </span>
         </div>
       ) : (
         <div style={{ width: '100%', height: height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+            <LineChart data={chartData} margin={{ top: 12, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.07)" />
               <XAxis
                 dataKey="time"
@@ -178,11 +176,11 @@ export default function CurrentChart({
                   x2={fEnd}
                   strokeOpacity={0.3}
                   fill="#ef4444"
-                  fillOpacity={0.08}
+                  fillOpacity={0.09}
                 />
               )}
 
-              {/* Inception Marker Line */}
+              {/* Fault Start Marker Line */}
               {isFault && (
                 <ReferenceLine
                   x={fStart}
@@ -192,6 +190,22 @@ export default function CurrentChart({
                     value: 'Fault Inception',
                     position: 'top',
                     fill: '#ef4444',
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                />
+              )}
+
+              {/* Fault End Marker Line */}
+              {isFault && (
+                <ReferenceLine
+                  x={fEnd}
+                  stroke="#38bdf8"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: 'Cleared',
+                    position: 'top',
+                    fill: '#38bdf8',
                     fontSize: 10,
                     fontWeight: 700,
                   }}

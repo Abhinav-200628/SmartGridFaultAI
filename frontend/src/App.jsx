@@ -14,7 +14,11 @@ import ProtectionPanel from './components/ProtectionPanel';
 import EventTimeline from './components/EventTimeline';
 import SymmetricalComponents from './components/SymmetricalComponents';
 import Alerts from './components/Alerts';
+import ComparisonView from './components/ComparisonView';
+import SimulationHistory from './components/SimulationHistory';
 import { checkBackendHealth, runSimulation } from './services/api';
+import { exportWaveformCSV, exportIncidentReportJSON } from './services/exportService';
+import { Zap, AlertTriangle, RefreshCw, Activity } from 'lucide-react';
 
 const DEFAULT_PARAMS = {
   voltage_rms: 11000.0,
@@ -33,6 +37,7 @@ const DEFAULT_PARAMS = {
   protection_delay_ms: 40.0,
   line_resistance_per_km: 0.125,
   line_reactance_per_km: 0.393,
+  auto_reconfigure: false,
   total_time: 0.16,
 };
 
@@ -43,6 +48,27 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState({ connected: false });
   const [errorMessage, setErrorMessage] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [history, setHistory] = useState([]);
+
+  // Record a simulation run into session audit history
+  const recordHistory = useCallback((data, simParams) => {
+    if (!data) return;
+    const now = new Date();
+    const timeStr = now.toTimeString().split(' ')[0];
+    const entry = {
+      id: `run-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      timestamp: timeStr,
+      faultType: data.fault_type || (data.fault_detected ? 'SHORT_CIRCUIT' : 'NORMAL'),
+      phase: data.affected_phases && data.affected_phases.length ? data.affected_phases.join(', ') : 'All',
+      distance: data.fault_distance_km ?? simParams?.fault_distance_km ?? 25.0,
+      estimatedDistance: data.estimated_fault_distance_km,
+      breakerState: data.breaker_state || 'CLOSED',
+      gridStatus: data.grid_status || 'HEALTHY',
+      faultDetected: Boolean(data.fault_detected),
+      params: { ...simParams },
+    };
+    setHistory((prev) => [entry, ...prev.slice(0, 19)]);
+  }, []);
 
   // Check backend health on initial mount
   const checkHealth = useCallback(async () => {
@@ -78,6 +104,7 @@ export default function App() {
       if (result.success) {
         setSimulationData(result.data);
         setBackendStatus({ connected: true });
+        recordHistory(result.data, simParams);
       } else {
         setErrorMessage(result.error);
       }
@@ -86,7 +113,7 @@ export default function App() {
     } finally {
       setIsSimulating(false);
     }
-  }, []);
+  }, [recordHistory]);
 
   // Changing any parameter causes a dynamic API request to update simulation results
   useEffect(() => {
@@ -100,6 +127,7 @@ export default function App() {
           if (result.success) {
             setSimulationData(result.data);
             setBackendStatus({ connected: true });
+            recordHistory(result.data, params);
           } else {
             setErrorMessage(result.error);
           }
@@ -115,7 +143,7 @@ export default function App() {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [params]);
+  }, [params, recordHistory]);
 
   const handleRunSimulation = () => {
     executeSimulation(params);
@@ -141,6 +169,9 @@ export default function App() {
         onResetSimulation={handleReset}
         onSelectPreset={handleSelectPreset}
         isSimulating={isSimulating}
+        onExportCSV={() => exportWaveformCSV(simulationData)}
+        onExportJSON={() => exportIncidentReportJSON(simulationData, params)}
+        hasSimulationData={Boolean(simulationData)}
       />
 
       <div className="scada-layout">
@@ -148,7 +179,63 @@ export default function App() {
         <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
 
         <main className="scada-content" style={{ maxHeight: 'none', overflowY: 'visible' }}>
-          {/* Error notification if backend communication failed */}
+          {/* Requirement 19: Backend Connection Error State */}
+          {!backendStatus.connected && (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.14)',
+                border: '1px solid rgba(239, 68, 68, 0.45)',
+                borderRadius: '8px',
+                padding: '12px 18px',
+                color: '#f87171',
+                fontSize: '0.84rem',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertTriangle size={18} style={{ color: '#ef4444' }} />
+                <span>
+                  <strong>Backend Connection Error:</strong> Please verify that the FastAPI server is running on <code>http://127.0.0.1:8000</code>.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={checkHealth}
+                style={{ padding: '3px 10px', fontSize: '0.72rem' }}
+              >
+                <RefreshCw size={11} /> Recheck
+              </button>
+            </div>
+          )}
+
+          {/* Requirement 19: Running Simulation Loading Banner */}
+          {isSimulating && (
+            <div
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '8px',
+                padding: '10px 18px',
+                color: 'var(--accent-cyan)',
+                fontSize: '0.82rem',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <span className="pill-dot simulating" />
+              <span>
+                <strong>Running Electrical Simulation...</strong> Calculating three-phase time-domain differential equations &amp; sequence components.
+              </span>
+            </div>
+          )}
+
+          {/* Simulation Error Alert (Dismissible) */}
           {errorMessage && (
             <div
               style={{
@@ -198,6 +285,11 @@ export default function App() {
                   backendStatus={backendStatus}
                   errorMessage={errorMessage}
                 />
+                <SimulationHistory
+                  history={history}
+                  onSelectRun={handleSelectPreset}
+                  onClearHistory={() => setHistory([])}
+                />
               </div>
 
               {/* Right Column: Visualizers, SLD, Diagnostics, Timelines, & Charts */}
@@ -208,27 +300,29 @@ export default function App() {
                 {/* Multi-Tabbed Fault Waveform Analyzer (Voltage, Current, Dual Y-Axis) */}
                 <FaultWaveformChart simulationData={simulationData} height={380} />
 
-                {/* Diagnostic Subgrid: Fault Detection & Fault Classification */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Individual Three-Phase Voltage & Current Waveforms */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
+                  <VoltageChart simulationData={simulationData} height={280} />
+                  <CurrentChart simulationData={simulationData} height={280} />
+                </div>
+
+                {/* Diagnostic Subgrid: Fault Analysis & AI Fault Classification */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
                   <FaultDetection simulationData={simulationData} />
                   <FaultClassification simulationData={simulationData} />
                 </div>
 
                 {/* Diagnostic Subgrid: Fault Localization & Symmetrical Components */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
                   <FaultLocalization simulationData={simulationData} />
                   <SymmetricalComponents simulationData={simulationData} />
                 </div>
 
-                {/* Diagnostic Subgrid: Protection Panel & Event Timeline */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Diagnostic Subgrid: Protection & Automatic Switching + Event Timeline */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
                   <ProtectionPanel simulationData={simulationData} />
                   <EventTimeline simulationData={simulationData} />
                 </div>
-
-                {/* Individual Three-Phase Voltage & Current Waveforms */}
-                <VoltageChart simulationData={simulationData} height={300} />
-                <CurrentChart simulationData={simulationData} height={300} />
               </div>
             </div>
           )}
@@ -269,6 +363,11 @@ export default function App() {
             </div>
           )}
 
+          {/* TAB: AI VS PHYSICS COMPARATIVE EVALUATION */}
+          {activeTab === 'compare' && (
+            <ComparisonView simulationData={simulationData} params={params} />
+          )}
+
           {/* TAB 5: PROTECTION & SWITCHING */}
           {activeTab === 'protection' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -301,34 +400,49 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 7: SYSTEM INFORMATION */}
+          {/* TAB 7: SIMULATION HISTORY */}
+          {activeTab === 'history' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <SimulationHistory
+                history={history}
+                onSelectRun={handleSelectPreset}
+                onClearHistory={() => setHistory([])}
+              />
+            </div>
+          )}
+
+          {/* TAB 8: SYSTEM INFORMATION */}
           {activeTab === 'info' && (
             <div className="scada-card">
               <div className="scada-card-header">
                 <div className="scada-card-title">
-                  <span>SmartGridFaultAI — System Architecture & IEEE Specifications</span>
+                  <span>SmartGridFaultAI — System Architecture &amp; IEEE Specifications</span>
                 </div>
                 <span className="scada-badge badge-normal">EEE Final-Year Capstone 2026</span>
               </div>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6' }}>
                 <p style={{ marginBottom: '14px' }}>
-                  <strong>Project Title:</strong> AI-Based Smart Grid Fault Detection, Classification, Localization & Automatic Switching System
+                  <strong>Project Title:</strong> AI-Based Smart Grid Fault Detection, Classification, Localization &amp; Automatic Switching System
                 </p>
                 <p style={{ marginBottom: '14px' }}>
-                  <strong>Simulation Engine:</strong> Python FastAPI physics-based three-phase time-domain solver with subtransient DC offset, line reactance impedance drop, and Fortescue symmetrical components.
+                  <strong>Simulation Engine:</strong> Python FastAPI physics-based three-phase time-domain solver with subtransient DC offset, line reactance impedance drop, Fortescue symmetrical components, and machine learning ensemble pipeline.
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginTop: '16px' }}>
                   <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '4px' }}>Phase 1 & 2: Physics Engine</div>
+                    <div style={{ fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '4px' }}>Phase 1 &amp; 2: Physics Engine</div>
                     <div>Complete three-phase physical AC simulation, symmetrical sequence decomposition, and reactance-based localization.</div>
                   </div>
                   <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--accent-blue)', marginBottom: '4px' }}>Step 1: Core SCADA UI</div>
-                    <div>StatusCards, ParameterPanel, VoltageChart, CurrentChart, and FaultWaveformChart.</div>
+                    <div style={{ fontWeight: 700, color: 'var(--accent-blue)', marginBottom: '4px' }}>Stage 3: AI &amp; ML Models</div>
+                    <div>Trained Random Forest Multi-Class Classifier and Random Forest Distance Regressor with 18 physical input features.</div>
                   </div>
                   <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>Step 2: Diagnostics & Visualizers</div>
-                    <div>FaultDetection, FaultClassification, FaultLocalization, TransmissionLine SLD, ProtectionPanel, EventTimeline, SymmetricalComponents, and Alerts.</div>
+                    <div style={{ fontWeight: 700, color: '#34d399', marginBottom: '4px' }}>Stage 4: FLISR Automatic Switching</div>
+                    <div>Sectionalizer isolation (S1/S2), breaker trip coordination (CB1), and tie-switch (TS1) service restoration.</div>
+                  </div>
+                  <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--accent-purple-light)', marginBottom: '4px' }}>Stage 5: Full System Integration</div>
+                    <div>SCADA Control-Room telemetry, side-by-side AI vs Physics comparison, and CSV/JSON telemetry export.</div>
                   </div>
                 </div>
               </div>

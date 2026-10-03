@@ -22,6 +22,9 @@ class FaultType(str, Enum):
     LL = "LL"
     LLG = "LLG"
     LLL = "LLL"
+    LLLG = "LLLG"
+    SHORT_CIRCUIT = "SHORT_CIRCUIT"
+    OPEN_CIRCUIT = "OPEN_CIRCUIT"
     PHASE_A_OPEN = "PHASE_A_OPEN"
     PHASE_B_OPEN = "PHASE_B_OPEN"
     PHASE_C_OPEN = "PHASE_C_OPEN"
@@ -37,7 +40,6 @@ class FaultType(str, Enum):
     LLG_AB = "LLG_AB"
     LLG_BC = "LLG_BC"
     LLG_CA = "LLG_CA"
-    OPEN_CIRCUIT = "OPEN_CIRCUIT"
 
 
 class BreakerState(str, Enum):
@@ -48,11 +50,23 @@ class BreakerState(str, Enum):
     RECLOSED = "RECLOSED"
 
 
+class SwitchingState(str, Enum):
+    """Operating states of the automatic switching and fault isolation system."""
+    NORMAL = "NORMAL"
+    FAULT_DETECTED = "FAULT_DETECTED"
+    PROTECTION_ACTIVE = "PROTECTION_ACTIVE"
+    BREAKER_OPEN = "BREAKER_OPEN"
+    FAULT_ISOLATED = "FAULT_ISOLATED"
+    SYSTEM_RESTORED = "SYSTEM_RESTORED"
+
+
 class GridStatus(str, Enum):
     """High-level SCADA grid operational status."""
     HEALTHY = "HEALTHY"
     FAULT_DETECTED = "FAULT_DETECTED"
+    PROTECTION_ACTIVE = "PROTECTION_ACTIVE"
     FAULT_ISOLATED = "FAULT_ISOLATED"
+    SYSTEM_RESTORED = "SYSTEM_RESTORED"
     RECONFIGURING = "RECONFIGURING"
     POWER_RESTORED = "POWER_RESTORED"
     SERVICE_RESTORED = "SERVICE_RESTORED"
@@ -61,6 +75,18 @@ class GridStatus(str, Enum):
     ISOLATING = "ISOLATING"
     ISOLATED = "ISOLATED"
     RESTORED = "RESTORED"
+
+
+class IsolatedSection(BaseModel):
+    """Details of the transmission line section isolated by automatic switching."""
+    section_id: str = Field(default="LINE_SEC_1_SENDING", description="Identifier for the isolated line segment")
+    from_km: float = Field(default=0.0, description="Start boundary of isolated segment in km")
+    to_km: float = Field(default=0.0, description="End boundary of isolated segment in km")
+    length_km: float = Field(default=0.0, description="Length of isolated segment in km")
+    status: str = Field(default="ISOLATED", description="Status of this section: ISOLATED or IN_SERVICE")
+    isolation_method: str = Field(default="AUTOMATIC_BREAKER_TRIP", description="Switching mechanism")
+    affected_phases: List[str] = Field(default_factory=list, description="Phases isolated")
+    healthy_section_status: str = Field(default="REMAINING_IN_SERVICE", description="Status of adjacent healthy line section")
 
 
 class SequenceDetail(BaseModel):
@@ -94,6 +120,10 @@ class ProtectionEvent(BaseModel):
     event_type: str
     description: str
     status: str
+    event: Optional[str] = Field(default=None, description="Standardized event name (e.g. BREAKER_OPEN, FAULT_ISOLATED)")
+    time: Optional[float] = Field(default=None, description="Event timestamp in seconds (alias for timestamp_s)")
+    breaker_state: Optional[str] = Field(default=None, description="Circuit breaker operating state")
+    reason: Optional[str] = Field(default=None, description="Protective relay trigger reason")
 
 
 class SwitchingEvent(BaseModel):
@@ -104,6 +134,27 @@ class SwitchingEvent(BaseModel):
     action: str
     grid_status: str
     description: str
+    event: Optional[str] = Field(default=None, description="Standardized switching event name")
+    time: Optional[float] = Field(default=None, description="Event timestamp in seconds (alias for timestamp_s)")
+    breaker_state: Optional[str] = Field(default=None, description="Circuit breaker operating state")
+    reason: Optional[str] = Field(default=None, description="Automated switching trigger reason")
+
+
+class MLPrediction(BaseModel):
+    """Machine learning fault classification prediction output."""
+    enabled: bool = Field(default=False, description="Whether ML inference was executed")
+    fault_type: Optional[str] = Field(default=None, description="Predicted fault type class")
+    confidence: Optional[float] = Field(default=None, description="Top predicted class probability (0.0 to 1.0)")
+    model_probability: Optional[float] = Field(default=None, description="Model output probability (0.0 to 1.0)")
+    class_probabilities: Optional[Dict[str, float]] = Field(default=None, description="Per-class probability distribution")
+    model_name: Optional[str] = Field(default=None, description="Model architecture identifier")
+
+
+class MLLocalization(BaseModel):
+    """Machine learning fault distance regression output."""
+    enabled: bool = Field(default=False, description="Whether ML localization was executed")
+    estimated_fault_distance_km: Optional[float] = Field(default=None, description="Predicted fault distance in km")
+    model_name: Optional[str] = Field(default=None, description="Regressor architecture identifier")
 
 
 class SimulationInput(BaseModel):
@@ -230,6 +281,10 @@ class SimulationInput(BaseModel):
         le=500.0,
         description="Protection relay and circuit breaker clearing delay in milliseconds"
     )
+    auto_reconfigure: bool = Field(
+        default=False,
+        description="Whether automated tie-switch closing is armed to restore healthy line sections"
+    )
     total_time: float = Field(
         default=0.16,
         ge=0.02,
@@ -349,3 +404,21 @@ class SimulationResult(BaseModel):
     fault_start_time: float = Field(default=0.0, description="Fault inception timestamp (s)")
     fault_duration: float = Field(default=0.0, description="Fault duration (s)")
     fault_end_time: float = Field(default=0.0, description="Fault clearance timestamp (s)")
+
+    # Stage 3 Machine Learning Inference Outputs
+    ml_prediction: Optional[MLPrediction] = Field(default=None, description="ML fault classification output")
+    ml_localization: Optional[MLLocalization] = Field(default=None, description="ML fault localization regression output")
+
+    # Stage 4 Automatic Switching and Fault Isolation Outputs
+    switching_state: SwitchingState = Field(
+        default=SwitchingState.NORMAL,
+        description="Current automatic switching operational state (NORMAL, FAULT_ISOLATED, SYSTEM_RESTORED)"
+    )
+    faulted_section_status: str = Field(
+        default="IN_SERVICE",
+        description="Operational status of the faulted transmission section (IN_SERVICE or ISOLATED)"
+    )
+    isolated_section: Optional[IsolatedSection] = Field(
+        default=None,
+        description="Physical section boundaries and parameters of isolated segment"
+    )

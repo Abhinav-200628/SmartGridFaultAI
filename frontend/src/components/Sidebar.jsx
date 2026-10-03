@@ -4,8 +4,10 @@ import {
   Activity,
   AlertTriangle,
   Compass,
+  Scale,
   ShieldCheck,
   Sliders,
+  History,
   Info,
 } from 'lucide-react';
 
@@ -15,8 +17,10 @@ export default function Sidebar({ activeTab, onSelectTab }) {
     { id: 'live', label: 'Live Monitoring', icon: Activity },
     { id: 'fault', label: 'Fault Analysis', icon: AlertTriangle },
     { id: 'localization', label: 'Fault Localization', icon: Compass },
+    { id: 'compare', label: 'AI vs Physics', icon: Scale },
     { id: 'protection', label: 'Protection & Switching', icon: ShieldCheck },
     { id: 'simulation', label: 'Simulation Controls', icon: Sliders },
+    { id: 'history', label: 'Simulation History', icon: History },
     { id: 'info', label: 'System Information', icon: Info },
   ];
 
@@ -42,10 +46,10 @@ export default function Sidebar({ activeTab, onSelectTab }) {
 
       <div style={{ marginTop: 'auto', padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          IEEE Final-Year Project
+          IEEE Capstone 2026
         </div>
         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '2px' }}>
-          EEE Capstone 2026
+          EEE Final-Year Demo
         </div>
       </div>
     </aside>

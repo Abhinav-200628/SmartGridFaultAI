@@ -13,23 +13,12 @@ import {
 
 /**
  * ParameterPanel Component
- * Interactive SCADA control console providing sliders, numeric readouts, and selections
- * for 3-phase grid parameters, transmission line characteristics, short-circuit & open-circuit
- * fault injections, and circuit breaker protection delay.
- *
- * Supported parameters:
- * - RMS voltage (voltage_rms)
- * - Frequency (frequency)
- * - Load power (load_kw)
- * - Power factor (power_factor)
- * - Line length (line_length_km)
- * - Fault type (NORMAL, LG, LL, LLG, LLL, OPEN_CIRCUIT, SHORT_CIRCUIT)
- * - Fault phase (fault_phase) & phase pair (fault_phase_pair)
- * - Fault distance (fault_distance_km)
- * - Fault resistance (fault_resistance_ohm)
- * - Fault start time (fault_start_time)
- * - Fault duration (fault_duration)
- * - Protection delay (protection_delay_ms)
+ * Fulfills Requirement 4:
+ * Professional "Simulation Parameters" panel with logical groups:
+ * - SYSTEM PARAMETERS (RMS Voltage, Frequency, Load Power, Power Factor, Line Length)
+ * - FAULT PARAMETERS (Fault Type: NORMAL, LG, LL, LLG, LLL, OPEN CIRCUIT, SHORT CIRCUIT, Phase, Distance, Resistance, Start Time, Duration)
+ * - PROTECTION (Protection Delay, Auto Tie-Switch)
+ * Prominent electric-blue/cyan "RUN SIMULATION" button and "RESET PARAMETERS" button.
  */
 export default function ParameterPanel({
   params,
@@ -60,19 +49,9 @@ export default function ParameterPanel({
 
     if (newType === 'NORMAL') {
       updates.fault_category = 'NORMAL';
-    } else if (
-      newType === 'PHASE_A_OPEN' ||
-      newType === 'PHASE_B_OPEN' ||
-      newType === 'PHASE_C_OPEN' ||
-      newType === 'THREE_PHASE_OPEN' ||
-      newType === 'OPEN_CIRCUIT'
-    ) {
+    } else if (newType === 'OPEN_CIRCUIT' || newType.includes('OPEN')) {
       updates.fault_category = 'OPEN_CIRCUIT';
-      if (newType === 'PHASE_A_OPEN') updates.fault_phase = 'A';
-      else if (newType === 'PHASE_B_OPEN') updates.fault_phase = 'B';
-      else if (newType === 'PHASE_C_OPEN') updates.fault_phase = 'C';
-      else if (newType === 'THREE_PHASE_OPEN') updates.fault_phase = 'ABC';
-      else if (!params.fault_phase) updates.fault_phase = 'A';
+      if (!params.fault_phase) updates.fault_phase = 'A';
     } else {
       updates.fault_category = 'SHORT_CIRCUIT';
       if (newType === 'LG' && !params.fault_phase) updates.fault_phase = 'A';
@@ -84,7 +63,7 @@ export default function ParameterPanel({
     onChange({ ...params, ...updates });
   };
 
-  // Determine available phase options contextually
+  // Contextual phase options
   const getPhaseOptions = () => {
     switch (params.fault_type) {
       case 'LG':
@@ -105,6 +84,14 @@ export default function ParameterPanel({
           { label: 'Phases B & C to Ground (B-C-G)', value: 'B-C', field: 'fault_phase_pair' },
           { label: 'Phases C & A to Ground (C-A-G)', value: 'C-A', field: 'fault_phase_pair' },
         ];
+      case 'LLL':
+        return [
+          { label: 'Three-Phase Bolted (A-B-C)', value: 'A-B-C', field: 'fault_phase_pair' },
+        ];
+      case 'LLLG':
+        return [
+          { label: 'Three-Phase to Ground (A-B-C-G)', value: 'A-B-C', field: 'fault_phase_pair' },
+        ];
       case 'OPEN_CIRCUIT':
         return [
           { label: 'Phase A Open Conductor', value: 'A', field: 'fault_phase' },
@@ -114,8 +101,8 @@ export default function ParameterPanel({
         ];
       case 'SHORT_CIRCUIT':
         return [
-          { label: 'Single Line-to-Ground (A-G)', value: 'A', field: 'fault_phase' },
-          { label: 'Line-to-Line (A-B)', value: 'A-B', field: 'fault_phase_pair' },
+          { label: 'Phase A to Ground (A-G)', value: 'A', field: 'fault_phase' },
+          { label: 'Phases A & B Short (A-B)', value: 'A-B', field: 'fault_phase_pair' },
           { label: 'Double Line-to-Ground (A-B-G)', value: 'A-B', field: 'fault_phase_pair' },
           { label: 'Three-Phase Bolted (A-B-C)', value: 'A-B-C', field: 'fault_phase_pair' },
         ];
@@ -126,15 +113,13 @@ export default function ParameterPanel({
 
   const phaseOptions = getPhaseOptions();
   const isFaultSelected = params.fault_type !== 'NORMAL';
-  const isOpenCircuit =
-    params.fault_type?.includes('OPEN') || params.fault_category === 'OPEN_CIRCUIT';
 
   return (
     <div className="scada-card" style={{ height: 'fit-content' }}>
       <div className="scada-card-header">
         <div className="scada-card-title">
           <Sliders size={18} />
-          <span>Simulation Parameters</span>
+          <span>SIMULATION PARAMETERS</span>
         </div>
         {onReset && (
           <button
@@ -142,28 +127,28 @@ export default function ParameterPanel({
             className="btn-secondary"
             onClick={onReset}
             style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-            title="Reset to default IEEE 11kV balanced parameters"
+            title="Reset to default healthy parameters"
           >
             <RotateCcw size={12} /> Reset
           </button>
         )}
       </div>
 
-      {/* SECTION 1: THREE-PHASE GRID BASE */}
+      {/* 1. SYSTEM PARAMETERS */}
       <div className="param-section">
         <div className="param-section-title">
           <Zap size={14} />
-          <span>Three-Phase Grid Source</span>
+          <span>SYSTEM PARAMETERS</span>
         </div>
 
         {/* RMS Line-to-Line Voltage */}
         <div className="form-group">
           <label>
-            <span>RMS Voltage (Line-to-Line)</span>
+            <span>RMS Voltage</span>
             <span className="val-badge">
               {params.voltage_rms >= 1000
-                ? `${(params.voltage_rms / 1000).toFixed(1)} kV`
-                : `${params.voltage_rms} V`}
+                ? `${(params.voltage_rms / 1000).toFixed(2)} kV`
+                : `${params.voltage_rms.toFixed(0)} V`}
             </span>
           </label>
           <input
@@ -177,10 +162,10 @@ export default function ParameterPanel({
           />
         </div>
 
-        {/* Grid Frequency */}
+        {/* Frequency */}
         <div className="form-group">
           <label>
-            <span>System Frequency</span>
+            <span>Frequency</span>
             <span className="val-badge">{(params.frequency || 50.0).toFixed(1)} Hz</span>
           </label>
           <input
@@ -194,11 +179,15 @@ export default function ParameterPanel({
           />
         </div>
 
-        {/* Active Load Power */}
+        {/* Load Power */}
         <div className="form-group">
           <label>
-            <span>Active Load Demand</span>
-            <span className="val-badge">{(params.load_kw || 500).toFixed(0)} kW</span>
+            <span>Load Power</span>
+            <span className="val-badge">
+              {params.load_kw >= 1000
+                ? `${(params.load_kw / 1000).toFixed(2)} MW`
+                : `${(params.load_kw || 500).toFixed(0)} kW`}
+            </span>
           </label>
           <input
             type="range"
@@ -211,11 +200,11 @@ export default function ParameterPanel({
           />
         </div>
 
-        {/* Operating Power Factor */}
+        {/* Power Factor */}
         <div className="form-group">
           <label>
-            <span>Power Factor (Lagging)</span>
-            <span className="val-badge">{(params.power_factor || 0.85).toFixed(2)}</span>
+            <span>Power Factor</span>
+            <span className="val-badge">{(params.power_factor || 0.85).toFixed(2)} lag</span>
           </label>
           <input
             type="range"
@@ -228,10 +217,10 @@ export default function ParameterPanel({
           />
         </div>
 
-        {/* Transmission Line Length */}
+        {/* Line Length */}
         <div className="form-group">
           <label>
-            <span>Transmission Line Length</span>
+            <span>Line Length</span>
             <span className="val-badge">{(params.line_length_km || 50).toFixed(0)} km</span>
           </label>
           <input
@@ -246,17 +235,17 @@ export default function ParameterPanel({
         </div>
       </div>
 
-      {/* SECTION 2: FAULT INJECTION & SCENARIOS */}
+      {/* 2. FAULT PARAMETERS */}
       <div className="param-section">
         <div className="param-section-title">
           <AlertTriangle size={14} />
-          <span>Fault Injection Configuration</span>
+          <span>FAULT PARAMETERS</span>
         </div>
 
         {/* Fault Type Selection */}
         <div className="form-group">
           <label>
-            <span>Fault Category & Type</span>
+            <span>Fault Type</span>
           </label>
           <select
             className="scada-select"
@@ -264,24 +253,20 @@ export default function ParameterPanel({
             onChange={handleFaultTypeChange}
           >
             <option value="NORMAL">● NORMAL (Balanced Steady-State)</option>
-            <option value="LG">⚡ LG (Single Line-to-Ground)</option>
-            <option value="LL">⚡ LL (Line-to-Line Short Circuit)</option>
+            <option value="LG">⚡ LG (Line-to-Ground)</option>
+            <option value="LL">⚡ LL (Line-to-Line)</option>
             <option value="LLG">⚡ LLG (Double Line-to-Ground)</option>
-            <option value="LLL">⚡ LLL (Three-Phase Symmetrical Bolted)</option>
-            <option value="OPEN_CIRCUIT">✂ OPEN_CIRCUIT (Conductor Break)</option>
-            <option value="SHORT_CIRCUIT">⚡ SHORT_CIRCUIT (General Inception)</option>
-            <option value="PHASE_A_OPEN">✂ Phase A Conductor Open</option>
-            <option value="PHASE_B_OPEN">✂ Phase B Conductor Open</option>
-            <option value="PHASE_C_OPEN">✂ Phase C Conductor Open</option>
-            <option value="THREE_PHASE_OPEN">✂ Three-Phase Complete Open</option>
+            <option value="LLL">⚡ LLL (Three-Phase Symmetrical)</option>
+            <option value="LLLG">⚡ LLLG (Three-Phase-to-Ground)</option>
+            <option value="OPEN_CIRCUIT">✂ OPEN CIRCUIT (Conductor Break)</option>
           </select>
         </div>
 
-        {/* Contextual Phase Selection */}
+        {/* Fault Phase */}
         {phaseOptions.length > 0 && (
           <div className="form-group">
             <label>
-              <span>Affected Phase Selection</span>
+              <span>Fault Phase</span>
             </label>
             <select
               className="scada-select"
@@ -300,14 +285,15 @@ export default function ParameterPanel({
           </div>
         )}
 
-        {/* Fault Distances & Timing (Visible when a fault is selected) */}
         {isFaultSelected && (
           <>
             {/* Fault Distance */}
             <div className="form-group">
               <label>
-                <span>Fault Location (Distance)</span>
-                <span className="val-badge">{(params.fault_distance_km || 25).toFixed(1)} km</span>
+                <span>Fault Distance</span>
+                <span className="val-badge">
+                  {(params.fault_distance_km || 25).toFixed(1)} km
+                </span>
               </label>
               <input
                 type="range"
@@ -315,36 +301,34 @@ export default function ParameterPanel({
                 min="1.0"
                 max={params.line_length_km || 50}
                 step="0.5"
-                value={Math.min(params.fault_distance_km || 25, params.line_length_km || 50)}
+                value={params.fault_distance_km || 25}
                 onChange={(e) => handleChange('fault_distance_km', parseFloat(e.target.value))}
               />
             </div>
 
-            {/* Fault Resistance (Only for short circuits) */}
-            {!isOpenCircuit && (
-              <div className="form-group">
-                <label>
-                  <span>Fault Resistance (Rf)</span>
-                  <span className="val-badge">
-                    {(params.fault_resistance_ohm || 1.0).toFixed(2)} Ω
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  className="scada-slider"
-                  min="0.05"
-                  max="50.0"
-                  step="0.05"
-                  value={params.fault_resistance_ohm || 1.0}
-                  onChange={(e) => handleChange('fault_resistance_ohm', parseFloat(e.target.value))}
-                />
-              </div>
-            )}
+            {/* Fault Resistance */}
+            <div className="form-group">
+              <label>
+                <span>Fault Resistance</span>
+                <span className="val-badge">
+                  {(params.fault_resistance_ohm || 1.0).toFixed(2)} Ω
+                </span>
+              </label>
+              <input
+                type="range"
+                className="scada-slider"
+                min="0.05"
+                max="30.0"
+                step="0.25"
+                value={params.fault_resistance_ohm || 1.0}
+                onChange={(e) => handleChange('fault_resistance_ohm', parseFloat(e.target.value))}
+              />
+            </div>
 
             {/* Fault Start Time */}
             <div className="form-group">
               <label>
-                <span>Fault Inception (Start Time)</span>
+                <span>Fault Start Time</span>
                 <span className="val-badge">
                   {(params.fault_start_time || 0.04).toFixed(3)} s
                 </span>
@@ -364,13 +348,15 @@ export default function ParameterPanel({
             <div className="form-group">
               <label>
                 <span>Fault Duration</span>
-                <span className="val-badge">{(params.fault_duration || 0.06).toFixed(3)} s</span>
+                <span className="val-badge">
+                  {(params.fault_duration || 0.06).toFixed(3)} s
+                </span>
               </label>
               <input
                 type="range"
                 className="scada-slider"
                 min="0.01"
-                max="0.10"
+                max="0.15"
                 step="0.005"
                 value={params.fault_duration || 0.06}
                 onChange={(e) => handleChange('fault_duration', parseFloat(e.target.value))}
@@ -380,19 +366,18 @@ export default function ParameterPanel({
         )}
       </div>
 
-      {/* SECTION 3: PROTECTION RELAY TIMING */}
+      {/* 3. PROTECTION & SWITCHING */}
       <div className="param-section">
         <div className="param-section-title">
           <Shield size={14} />
-          <span>Protection & Circuit Breaker</span>
+          <span>PROTECTION &amp; SWITCHING</span>
         </div>
 
+        {/* Protection Delay */}
         <div className="form-group">
           <label>
-            <span>Breaker Clearing Delay</span>
-            <span className="val-badge">
-              {(params.protection_delay_ms || 40).toFixed(0)} ms
-            </span>
+            <span>Protection Delay</span>
+            <span className="val-badge">{(params.protection_delay_ms || 40).toFixed(0)} ms</span>
           </label>
           <input
             type="range"
@@ -404,10 +389,47 @@ export default function ParameterPanel({
             onChange={(e) => handleChange('protection_delay_ms', parseFloat(e.target.value))}
           />
         </div>
+
+        {/* FLISR Tie-Switch Reconfiguration */}
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '10px 12px',
+            background: 'var(--bg-input)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-color)',
+          }}
+        >
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              marginBottom: '4px',
+            }}
+          >
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Shield size={13} style={{ color: params.auto_reconfigure ? '#10b981' : 'var(--text-dim)' }} />
+              Auto Tie-Switch (FLISR TS1)
+            </span>
+            <input
+              type="checkbox"
+              checked={Boolean(params.auto_reconfigure)}
+              onChange={(e) => handleChange('auto_reconfigure', e.target.checked)}
+              style={{ width: '16px', height: '16px', accentColor: 'var(--accent-blue)', cursor: 'pointer' }}
+            />
+          </label>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', lineHeight: '1.3' }}>
+            {params.auto_reconfigure
+              ? 'Tie-Switch TS1 automatically closes to restore power to adjacent healthy section'
+              : 'Sectionalizer isolation only (no automated tie-switch closing)'}
+          </div>
+        </div>
       </div>
 
-      {/* ADVANCED LINE PARAMETERS ACCORDION */}
-      <div className="param-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+      {/* ADVANCED ACCORDION */}
+      <div className="param-section" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', marginBottom: '16px' }}>
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
@@ -426,7 +448,7 @@ export default function ParameterPanel({
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Settings2 size={13} /> Line Impedance & Time Window
+            <Settings2 size={13} /> Line Impedance &amp; Time Window
           </span>
           {showAdvanced ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </button>
@@ -475,7 +497,7 @@ export default function ParameterPanel({
 
             <div className="form-group">
               <label>
-                <span>Simulation Window (T_total)</span>
+                <span>Simulation Window</span>
                 <span className="val-badge">{(params.total_time || 0.16).toFixed(2)} s</span>
               </label>
               <input
@@ -492,25 +514,41 @@ export default function ParameterPanel({
         )}
       </div>
 
-      {/* RUN SIMULATION PRIMARY CTA */}
-      <button
-        type="button"
-        className="btn-primary"
-        onClick={onRunSimulation}
-        disabled={isSimulating}
-      >
-        {isSimulating ? (
-          <>
-            <span className="pill-dot simulating" />
-            <span>Calculating ODE Physics...</span>
-          </>
-        ) : (
-          <>
-            <Play size={16} fill="currentColor" />
-            <span>Run Simulation</span>
-          </>
+      {/* ACTION BUTTONS (Requirement 4) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Prominent Electric-Blue/Cyan RUN SIMULATION Button */}
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={onRunSimulation}
+          disabled={isSimulating}
+        >
+          {isSimulating ? (
+            <>
+              <span className="pill-dot simulating" />
+              <span>Running Simulation...</span>
+            </>
+          ) : (
+            <>
+              <Play size={16} fill="currentColor" />
+              <span>RUN SIMULATION</span>
+            </>
+          )}
+        </button>
+
+        {/* RESET PARAMETERS Button */}
+        {onReset && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onReset}
+            style={{ width: '100%', justifyContent: 'center', padding: '9px' }}
+          >
+            <RotateCcw size={14} />
+            <span>RESET PARAMETERS</span>
+          </button>
         )}
-      </button>
+      </div>
     </div>
   );
 }

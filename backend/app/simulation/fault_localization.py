@@ -113,8 +113,8 @@ def estimate_fault_distance(
             x_meas = max(0.0, z_app.imag)
             d_est_raw = x_meas / x1
 
-    # --- 4. THREE-PHASE BALANCED (LLL) ---
-    elif fault_type == FaultType.LLL:
+    # --- 4. THREE-PHASE BALANCED & SHUNT SHORT CIRCUIT (LLL / SHORT_CIRCUIT) ---
+    elif fault_type in [FaultType.LLL, FaultType.SHORT_CIRCUIT]:
         if abs(ia) > 1e-3:
             z_app = va / ia
             x_meas = max(0.0, z_app.imag)

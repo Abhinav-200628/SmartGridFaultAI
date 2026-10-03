@@ -1,0 +1,14 @@
+{
+  "model_name": "RandomForestRegressor",
+  "random_seed": 42,
+  "n_estimators": 100,
+  "train_samples": 288,
+  "test_samples": 72,
+  "mean_line_length_km": 56.81,
+  "mae_km": 5.719,
+  "rmse_km": 8.634,
+  "r2_score": 0.8398,
+  "relative_error_percent": 10.07,
+  "description": "Baseline regression model estimating fault distance (km) from sending-terminal measurements.",
+  "disclaimer": "Calculated strictly on test-set simulations. Real-world utility accuracy is not claimed."
+}

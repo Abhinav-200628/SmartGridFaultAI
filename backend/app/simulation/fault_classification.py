@@ -50,9 +50,13 @@ def classify_fault(
 
     # --- 1. SHORT-CIRCUIT CLASSIFICATION ---
     if category == FaultCategory.SHORT_CIRCUIT:
-        if num_phases >= 3 or (surge_ratio > 3.0 and i0_ratio < 0.20 and i2_ratio < 0.25):
-            detected_type = FaultType.LLL
-            confidence = 0.98
+        if num_phases >= 3 or surge_ratio > 3.0:
+            if i0_ratio > 0.15:
+                detected_type = FaultType.LLLG
+                confidence = 0.96
+            else:
+                detected_type = FaultType.LLL
+                confidence = 0.98
 
         elif num_phases == 2:
             if i0_ratio > 0.18:

@@ -1,40 +1,57 @@
 /* ==========================================================================
-   SmartGridFaultAI - Industrial SCADA Dashboard Theme
-   Dark-Navy & Electric-Blue Power System Monitoring Palette
+   SmartGridFaultAI - Professional SCADA Control-Room Theme
+   Dark Navy / Deep Charcoal with Electric Blue, Cyan, Green, Amber, Red & Purple
    ========================================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+
 :root {
-  --bg-primary: #070c18;
-  --bg-secondary: #0c152a;
-  --bg-card: #111d38;
+  /* Control-room Backgrounds */
+  --bg-primary: #080d1a;
+  --bg-secondary: #0d1527;
+  --bg-card: #111b33;
   --bg-card-hover: #162444;
-  --bg-input: #091020;
-  
+  --bg-card-elevated: #15223e;
+  --bg-input: #0a1122;
+
+  /* SCADA Borders & Glows */
   --border-color: rgba(56, 189, 248, 0.18);
+  --border-color-hover: rgba(56, 189, 248, 0.4);
   --border-glow: rgba(0, 240, 255, 0.35);
 
-  --accent-cyan: #00f0ff;
-  --accent-blue: #38bdf8;
-  --accent-indigo: #6366f1;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-  --accent-red: #ef4444;
-  
-  --text-main: #f1f5f9;
+  /* Color Semantics */
+  --accent-cyan: #00f0ff;       /* Cyan Highlights & Electrical Metrics */
+  --accent-blue: #38bdf8;       /* Electric Blue Primary */
+  --accent-indigo: #6366f1;     /* Secondary Infrastructure */
+  --accent-purple: #a855f7;     /* Purple for AI / ML Analytics */
+  --accent-purple-light: #c084fc;
+  --accent-green: #10b981;      /* Green for Healthy / Normal / Breaker Closed */
+  --accent-green-bright: #34d399;
+  --accent-amber: #f59e0b;      /* Yellow / Orange for Warning / Protection Delay */
+  --accent-amber-bright: #fbbf24;
+  --accent-red: #ef4444;        /* Red for Fault / Critical / Breaker Open */
+  --accent-red-bright: #f87171;
+
+  /* Typography Colors */
+  --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
   --text-cyan: #38bdf8;
 
-  --phase-a: #ef4444; /* Standard Red */
-  --phase-b: #f59e0b; /* Standard Yellow/Amber */
-  --phase-c: #38bdf8; /* Standard Blue/Cyan */
+  /* Three-Phase Electrical Phase Colors (High contrast for dark background) */
+  --phase-a: #ef4444; /* Phase A: Red */
+  --phase-b: #f59e0b; /* Phase B: Amber/Yellow */
+  --phase-c: #38bdf8; /* Phase C: Blue/Cyan */
 
-  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(56, 189, 248, 0.12);
-  --shadow-glow-cyan: 0 0 15px rgba(0, 240, 255, 0.25);
-  --shadow-glow-red: 0 0 20px rgba(239, 68, 68, 0.35);
-  --shadow-glow-green: 0 0 15px rgba(16, 185, 129, 0.25);
+  /* Shadows */
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.55), 0 0 1px 1px rgba(56, 189, 248, 0.12);
+  --shadow-card-hover: 0 8px 30px -4px rgba(0, 0, 0, 0.65), 0 0 2px 1px rgba(56, 189, 248, 0.25);
+  --shadow-glow-cyan: 0 0 18px rgba(0, 240, 255, 0.3);
+  --shadow-glow-red: 0 0 22px rgba(239, 68, 68, 0.45);
+  --shadow-glow-green: 0 0 18px rgba(16, 185, 129, 0.3);
+  --shadow-glow-purple: 0 0 18px rgba(168, 85, 247, 0.35);
 
+  /* Radii (Modern, crisp, avoid excessive pill shape) */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -49,10 +66,16 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+/* Monospace Readouts */
+.mono-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: 'tnum' on, 'zero' on;
 }
 
 /* Custom Scrollbar */
@@ -71,11 +94,12 @@ body {
   background: var(--accent-blue);
 }
 
-/* Main Dashboard App Frame */
+/* SCADA Application Frame */
 .scada-app {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: var(--bg-primary);
 }
 
 .scada-layout {
@@ -87,13 +111,14 @@ body {
 .scada-content {
   flex: 1;
   padding: 24px;
-  background: radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.04) 0%, transparent 60%),
-              radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.04) 0%, transparent 60%);
+  background: radial-gradient(circle at 12% 10%, rgba(56, 189, 248, 0.035) 0%, transparent 55%),
+              radial-gradient(circle at 88% 90%, rgba(168, 85, 247, 0.03) 0%, transparent 55%),
+              var(--bg-primary);
   overflow-y: auto;
   max-height: calc(100vh - 68px);
 }
 
-/* Glassmorphism Card Style */
+/* SCADA Cards */
 .scada-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -101,11 +126,12 @@ body {
   box-shadow: var(--shadow-card);
   padding: 20px;
   position: relative;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
 }
 
 .scada-card:hover {
-  border-color: rgba(56, 189, 248, 0.35);
+  border-color: var(--border-color-hover);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .scada-card-header {
@@ -113,14 +139,14 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .scada-card-title {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--accent-cyan);
   display: flex;
@@ -128,55 +154,60 @@ body {
   gap: 8px;
 }
 
+/* SCADA Status Badges */
 .scada-badge {
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .badge-normal {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--accent-green-bright);
   border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
 .badge-fault {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  animation: pulse-border 2s infinite;
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--accent-red-bright);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  animation: pulse-border-red 2s infinite;
 }
 
 .badge-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--accent-amber-bright);
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
 .badge-info {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+  color: var(--accent-blue);
   border: 1px solid rgba(56, 189, 248, 0.35);
 }
 
-/* Numerical Readout Monospace Typography */
-.mono-val {
-  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+.badge-purple {
+  background: rgba(168, 85, 247, 0.15);
+  color: var(--accent-purple-light);
+  border: 1px solid rgba(168, 85, 247, 0.4);
 }
 
-/* Animations */
-@keyframes pulse-border {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+/* Pulse Animations */
+@keyframes pulse-border-red {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+  70% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 @keyframes pulse-glow-cyan {
   0%, 100% { filter: drop-shadow(0 0 3px rgba(0, 240, 255, 0.4)); }
-  50% { filter: drop-shadow(0 0 9px rgba(0, 240, 255, 0.8)); }
+  50% { filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.85)); }
 }
 
 @keyframes pulse-glow-red {
@@ -184,20 +215,20 @@ body {
   50% { filter: drop-shadow(0 0 14px rgba(239, 68, 68, 1)); }
 }
 
-/* Responsive Grid Layouts */
+/* Grids */
 .grid-cols-auto {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 16px;
 }
 
 .grid-main-2col {
   display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 24px;
+  grid-template-columns: 370px 1fr;
+  gap: 22px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .grid-main-2col {
     grid-template-columns: 1fr;
   }
@@ -210,4 +241,9 @@ body {
   .scada-content {
     padding: 14px;
   }
+}
+
+/* Table Hover */
+.table-row-hover:hover {
+  background: rgba(56, 189, 248, 0.05) !important;
 }

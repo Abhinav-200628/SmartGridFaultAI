@@ -5,9 +5,6 @@ import {
   AlertTriangle,
   AlertOctagon,
   ShieldAlert,
-  ShieldCheck,
-  WifiOff,
-  Info,
 } from 'lucide-react';
 
 /**
@@ -25,7 +22,7 @@ import {
 export default function Alerts({ simulationData, backendStatus, errorMessage }) {
   const alerts = useMemo(() => {
     const list = [];
-    const now = new Date().toLocaleTimeString();
+    const statusLabel = 'ACTIVE';
 
     // 1. Backend Connection Failure
     if (backendStatus && !backendStatus.connected) {
@@ -34,7 +31,7 @@ export default function Alerts({ simulationData, backendStatus, errorMessage }) 
         severity: 'CRITICAL',
         title: 'Backend Connection Offline',
         message: 'FastAPI simulation engine is unreachable at http://127.0.0.1:8000. Real-time ODE calculations suspended.',
-        time: now,
+        time: statusLabel,
       });
     }
 
@@ -45,7 +42,7 @@ export default function Alerts({ simulationData, backendStatus, errorMessage }) 
         severity: 'ERROR',
         title: 'Simulation Execution Error',
         message: String(errorMessage),
-        time: now,
+        time: statusLabel,
       });
     }
 
@@ -68,7 +65,7 @@ export default function Alerts({ simulationData, backendStatus, errorMessage }) 
         severity: 'CRITICAL',
         title: `Electrical Fault Detected: ${faultType}`,
         message: `High-speed relay pickup: ${faultType} active on ${affected} at approx ${estDist.toFixed(1)} km.`,
-        time: now,
+        time: statusLabel,
       });
 
       // 4. Protection Activated Alert
@@ -77,7 +74,7 @@ export default function Alerts({ simulationData, backendStatus, errorMessage }) 
         severity: 'WARNING',
         title: 'Protection Sequence Armed',
         message: `Inverse-time clearing delay armed (${delayMs.toFixed(0)} ms). Trip signal issued to circuit breaker CB1.`,
-        time: now,
+        time: statusLabel,
       });
     }
 
@@ -88,7 +85,7 @@ export default function Alerts({ simulationData, backendStatus, errorMessage }) 
         severity: 'WARNING',
         title: 'Circuit Breaker CB1 Tripped (OPEN)',
         message: 'Primary line circuit breaker CB1 has opened contacts to clear fault current.',
-        time: now,
+        time: statusLabel,
       });
     }
 
@@ -104,7 +101,7 @@ export default function Alerts({ simulationData, backendStatus, errorMessage }) 
         severity: 'INFO',
         title: 'Fault Section Successfully Isolated',
         message: `Line section at ${estDist.toFixed(1)} km isolated. Healthy downstream loads restored via automated switching.`,
-        time: now,
+        time: statusLabel,
       });
     }
 
@@ -115,7 +112,7 @@ export default function Alerts({ simulationData, backendStatus, errorMessage }) 
         severity: 'SUCCESS',
         title: 'Nominal Power Flow (System Healthy)',
         message: 'Three-phase balanced 50 Hz power transmission. Current, voltage, and sequence components within IEEE tolerances.',
-        time: now,
+        time: statusLabel,
       });
     }
 

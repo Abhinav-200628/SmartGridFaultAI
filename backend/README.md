@@ -129,16 +129,43 @@ $$\hat{d} = \frac{\text{Im}(Z_{app})}{x_{1, per\_km}}$$
 
 ---
 
-## 10. Automatic Switching & Reconfiguration (FLISR)
-Backend state transitions:
-$$\text{HEALTHY} \longrightarrow \text{FAULT\_DETECTED} \longrightarrow \text{ISOLATING} \longrightarrow \text{FAULT\_ISOLATED} \longrightarrow \text{RECONFIGURING} \longrightarrow \text{RESTORED}$$
-When reconfigured, alternate tie-switch TS1 closes to restore healthy downstream loads.
+## 10. Automatic Switching and Fault Isolation
+
+Stage 4 implements a deterministic, safety-oriented **Automatic Switching**, **Fault Isolation**, and **Protection Logic** subsystem operating alongside physical fault detection and baseline localization.
+
+### Operational State Transitions:
+$$\mathbf{NORMAL} \longrightarrow \mathbf{FAULT\_DETECTED} \longrightarrow \mathbf{PROTECTION\_ACTIVE} \longrightarrow \mathbf{BREAKER\_OPEN} \longrightarrow \mathbf{FAULT\_ISOLATED} \longrightarrow (\mathbf{SYSTEM\_RESTORED})$$
+
+1. **Normal Steady-State (`NORMAL`):**
+   - Circuit Breaker State: `CLOSED`.
+   - Grid Status: `HEALTHY`.
+   - Faulted Section Status: `IN_SERVICE`.
+   - Isolated Section: `None`.
+   - No unnecessary breaker trip operations.
+
+2. **Fault Detection & Protection Timing (`PROTECTION_ACTIVE`):**
+   - Upon disturbance inception $t_{\text{fault}}$, protection relay pickup occurs within $\approx 5\,\text{ms}$.
+   - Breaker contacts remain `CLOSED` while the protective timing unit counts down the configured clearing delay (`protection_delay_ms`).
+   - Timestamps are computed dynamically from $t_{\text{fault}} + \text{delay}$.
+
+3. **Circuit Breaker Opening (`BREAKER_OPEN`):**
+   - At $t_{\text{open}} = t_{\text{fault}} + \Delta t_{\text{delay}}$, trip coil mechanism fires and contacts part; fault arc is quenched.
+   - Breaker State transitions to `OPEN`.
+
+4. **Fault Section Isolation (`FAULT_ISOLATED`):**
+   - Sectionalizer switches isolate the line segment containing the disturbance based on the calculated $\hat{d} = \text{estimated\_fault\_distance\_km}$ (e.g. `LINE_SEC_1_SENDING` for $0 \le \hat{d} \le L/2$, or `LINE_SEC_2_RECEIVING` for $L/2 < \hat{d} \le L$).
+   - De-energizes the faulted line segment while preserving adjacent healthy segments (`REMAINING_IN_SERVICE`).
+   - Open-circuit faults trigger `OPEN_CONDUCTOR_ISOLATION` to prevent voltage unbalance and ground hazards without treating the broken wire as a high-current short circuit.
+
+5. **Automated Service Restoration (`SYSTEM_RESTORED`):**
+   - When automated tie-switching is armed (`auto_reconfigure=True`), tie-switch TS1 closes after isolation to restore power to healthy segments via an alternate feeder/microgrid path.
+   - Switching State and Grid Status transition to `SYSTEM_RESTORED`.
 
 ---
 
 ## 11. API Request Examples
 
-### Single Line-to-Ground Fault (`LG` on Phase A):
+### Single Line-to-Ground Fault with Automatic Switching & Restoration:
 ```json
 POST /api/simulation/run
 {
@@ -150,37 +177,63 @@ POST /api/simulation/run
   "load_kw": 500.0,
   "power_factor": 0.85,
   "line_length_km": 50.0,
-  "fault_distance_km": 35.0,
-  "fault_resistance_ohm": 2.0,
+  "fault_distance_km": 15.0,
+  "fault_resistance_ohm": 1.5,
   "fault_start_time": 0.04,
   "fault_duration": 0.06,
-  "protection_delay_ms": 40.0
+  "protection_delay_ms": 30.0,
+  "auto_reconfigure": true
 }
 ```
 
-### Open-Circuit Conductor Break (`PHASE_A_OPEN`):
+### Response Payload Structure (Stage 4 Extended):
 ```json
-POST /api/simulation/run
 {
-  "fault_category": "OPEN_CIRCUIT",
-  "fault_type": "PHASE_A_OPEN",
-  "voltage_rms": 11000.0,
-  "line_length_km": 50.0,
-  "fault_distance_km": 30.0,
-  "fault_start_time": 0.04,
-  "fault_duration": 0.06
+  "simulation_id": "sim_20261002_001",
+  "fault_detected": true,
+  "fault_type": "LG",
+  "affected_phases": ["A"],
+  "estimated_fault_distance_km": 14.85,
+  "breaker_state": "OPEN",
+  "grid_status": "SYSTEM_RESTORED",
+  "switching_state": "SYSTEM_RESTORED",
+  "faulted_section_status": "ISOLATED",
+  "isolated_section": {
+    "section_id": "LINE_SEC_1_SENDING",
+    "from_km": 0.0,
+    "to_km": 25.0,
+    "length_km": 25.0,
+    "status": "ISOLATED",
+    "isolation_method": "AUTOMATIC_BREAKER_TRIP",
+    "affected_phases": ["A"],
+    "healthy_section_status": "REMAINING_IN_SERVICE"
+  },
+  "switching_events": [
+    { "time": 0.0, "event": "SYSTEM_NORMAL", "breaker_state": "CLOSED", "grid_status": "HEALTHY" },
+    { "time": 0.045, "event": "FAULT_DETECTED", "breaker_state": "CLOSED", "grid_status": "FAULT_DETECTED" },
+    { "time": 0.050, "event": "PROTECTION_ACTIVE", "breaker_state": "CLOSED", "grid_status": "PROTECTION_ACTIVE" },
+    { "time": 0.070, "event": "BREAKER_OPEN", "breaker_state": "OPEN", "grid_status": "ISOLATING" },
+    { "time": 0.075, "event": "FAULT_ISOLATED", "breaker_state": "OPEN", "grid_status": "FAULT_ISOLATED" },
+    { "time": 0.095, "event": "RECONFIGURING", "breaker_state": "OPEN", "grid_status": "RECONFIGURING" },
+    { "time": 0.115, "event": "SYSTEM_RESTORED", "breaker_state": "OPEN", "grid_status": "SYSTEM_RESTORED" }
+  ]
 }
 ```
 
 ---
 
-## 12. Assumptions & Limitations
-### Assumptions:
+## 12. Engineering Assumptions & Safety Notice
+
+### Simulation Assumptions:
 - Conductor series parameters are modeled using standard ACSR positive ($r_1, x_1$) and zero ($r_0, x_0$) sequence impedances.
 - Ground return path resistance is assumed at $0.5\,\Omega$ substation earth grid resistance.
-- Three-phase load is balanced inductive load.
-- Short-circuit grid stiffness is modeled as 500 MVA equivalent source.
+- Three-phase load is modeled as a balanced lumped inductive load.
+- Protection decisions and breaker tripping are 100% deterministic (machine learning is strictly an auxiliary diagnostic feature and does not trip circuit breakers).
+- Line sectionalizing is based on midpoint sectionalizer geometry evaluated against terminal reactance localization.
 
-### Limitations:
-- Mutual coupling from adjacent parallel transmission circuits on double-circuit towers is not modeled.
-- Stage 2 uses a deterministic rule-based classifier; machine learning inference is scheduled for Stage 3.
+### Critical Safety / Regulatory Disclaimer:
+> **IMPORTANT NOTICE:**  
+> This software is an **academic engineering simulation, algorithmic testbed, and educational prototype**.  
+> It is **NOT** a certified utility-grade protection relay, SCADA controller, or substation automation IED.  
+> It must **NOT** be deployed on actual high-voltage transmission or distribution infrastructure without certified utility-grade protection hardware (e.g. IEEE C37.90 / IEC 60255 compliance, dual redundant CT/VT inputs, and hardware interlocking).  
+> The term **"Self-Healing Grid"** is not claimed as an active operational capability; the system executes **Automatic Switching**, **Fault Isolation**, and **Deterministic Protection Logic** on a simplified topological model.
